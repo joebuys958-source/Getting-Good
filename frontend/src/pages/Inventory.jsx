@@ -1,13 +1,54 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import vintedGroups from "../data/vintedCategories";
+import { loadInventory, saveInventory } from "../data/inventoryStore";
+import "../styles/inventory.css";
 
-/* ---------------- HELPERS ---------------- */
+/* ================= HELPERS ================= */
 
 function nextStatus(status) {
   if (status === "Bought") return "Listed";
   if (status === "Listed") return "Sold";
   return "Bought";
 }
+
+function ensureId(item) {
+  if (item?.id) return item;
+  const id =
+    (typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID()) ||
+    `id_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  return { ...item, id };
+}
+
+const COLOUR_MAP = {
+  black: "#111",
+  navy: "#0a2540",
+  white: "#ffffff",
+  red: "#ef4444",
+  green: "#22c55e",
+  pink: "#ec4899",
+  grey: "#9ca3af",
+  beige: "#e7dcc8",
+};
+
+/* ================= CONSTANTS ================= */
+
+const EMPTY_FORM = {
+  id: "",
+  name: "",
+  brand: "",
+  size: "",
+  colour: "",
+  purchasePrice: "",
+  purchaseDate: "",
+  estimatedSale: "",
+  soldPrice: "",
+  soldDate: "",
+  notes: "",
+  status: "Bought",
+  categoryPath: [],
+  finalCategory: "",
+};
 
 const BRANDS = [
   "Ralph Lauren",
@@ -22,6 +63,7 @@ const BRANDS = [
 ];
 
 const SIZES = ["XS", "S", "M", "L", "XL"];
+
 const COLOURS = [
   { name: "Black", value: "black" },
   { name: "Navy", value: "navy" },
@@ -33,225 +75,263 @@ const COLOURS = [
   { name: "Beige", value: "beige" },
 ];
 
-/* ---------------- INVENTORY ---------------- */
+/* ================= INVENTORY ================= */
 
 export default function Inventory() {
-  const [items, setItems] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editingIndex, setEditingIndex] = useState(null);
+  const location = useLocation();
+  const focusId = location.state?.focusId || null;
+  const itemRefs = useRef({});
 
-  const [form, setForm] = useState({
-    name: "",
-    brand: "",
-    size: "",
-    colour: "",
-    purchasePrice: "",
-    purchaseDate: "",
-    estimatedSale: "",
-    soldPrice: "",
-    notes: "",
-    status: "Bought",
-    category1: "",
-    category2: "",
-    category3: "",
-    category4: "",
+  const [items, setItems] = useState(() => {
+    const raw = loadInventory();
+    const arr = Array.isArray(raw) ? raw : [];
+    return arr.map(ensureId);
   });
+
+  const [showModal, setShowModal] = useState(false);
+  const [quickViewItem, setQuickViewItem] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [search, setSearch] = useState("");
+
+  /* ================= PERSIST ================= */
+
+  useEffect(() => {
+    saveInventory(items);
+  }, [items]);
+
+  /* ================= AI FOCUS ================= */
+
+  useEffect(() => {
+    if (!focusId) return;
+    const target = itemRefs.current[focusId];
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.style.boxShadow =
+      "0 0 0 2px rgba(255,60,60,.7), 0 0 28px rgba(255,60,60,.45)";
+
+    const t = setTimeout(() => {
+      target.style.boxShadow = "none";
+    }, 2500);
+
+    return () => clearTimeout(t);
+  }, [focusId]);
 
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
-  function handleSave() {
-    const price = Number(form.purchasePrice);
+  /* ================= SAVE ================= */
 
-    if (form.name.trim() === "" || isNaN(price) || price <= 0) {
-      alert("Please enter an item name and a valid purchase price.");
+  function handleSave() {
+    const buy = Number(form.purchasePrice);
+    const sold = Number(form.soldPrice);
+
+    if (!String(form.name || "").trim() || buy <= 0) {
+      alert("Item name and valid purchase price required.");
       return;
     }
 
+    if (form.status === "Sold" && sold <= 0) {
+      alert("Sold price required when status is Sold.");
+      return;
+    }
+
+    const withId = ensureId(form);
+
+    const itemData = {
+      ...withId,
+      finalCategory:
+        withId.finalCategory ||
+        (Array.isArray(withId.categoryPath)
+          ? withId.categoryPath[withId.categoryPath.length - 1]
+          : "") ||
+        "",
+    };
+
     setItems((prev) => {
-      const updated = [...prev];
-
-      const itemData = {
-        ...form,
-        finalCategory:
-          form.category4 ||
-          form.category3 ||
-          form.category2 ||
-          form.category1 ||
-          "",
-      };
-
-      if (editingIndex !== null) {
-        updated[editingIndex] = itemData;
-      } else {
-        updated.push(itemData);
-      }
-
-      return updated;
+      const copy = [...prev];
+      if (editingIndex !== null) copy[editingIndex] = itemData;
+      else copy.push(itemData);
+      return copy;
     });
 
+    setForm(EMPTY_FORM);
     setEditingIndex(null);
     setShowModal(false);
   }
 
-  /* ---------------- SUMMARY ---------------- */
+  /* ================= SEARCH ================= */
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const base = items.map((item, idx) => ({ item, idx }));
+    if (!q) return base;
+
+    return base.filter(({ item }) => {
+      const text = [
+        item.name,
+        item.brand,
+        item.finalCategory,
+        Array.isArray(item.categoryPath) ? item.categoryPath.join(" ") : "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return text.includes(q);
+    });
+  }, [items, search]);
+
+  /* ================= SUMMARY ================= */
 
   const summary = useMemo(() => {
-    const n = (v) => parseFloat(v || 0) || 0;
+    const n = (v) => Number(v) || 0;
+    const list = visible.map((x) => x.item);
 
     return {
-      inventory: items
+      inventory: list
         .filter((i) => i.status !== "Sold")
         .reduce((s, i) => s + n(i.purchasePrice), 0),
-
-      estProfit: items.reduce(
-        (s, i) => s + Math.max(n(i.estimatedSale) - n(i.purchasePrice), 0),
-        0
-      ),
-
-      sold: items
+      estProfit: list
+        .filter((i) => i.status !== "Sold")
+        .reduce((s, i) => s + Math.max(n(i.estimatedSale) - n(i.purchasePrice), 0), 0),
+      sold: list
         .filter((i) => i.status === "Sold")
         .reduce((s, i) => s + n(i.soldPrice), 0),
     };
-  }, [items]);
+  }, [visible]);
+
+  /* ================= RENDER ================= */
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>📦 Inventory</h1>
+    <div className="inventory-page">
+      <h1 className="inventory-title">📦 Inventory</h1>
 
-      {/* SUMMARY */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-        <SummaryCard title="💼 Inventory Value" value={`£${summary.inventory.toFixed(2)}`} />
-        <SummaryCard title="📈 Estimated Profit" value={`£${summary.estProfit.toFixed(2)}`} />
-        <SummaryCard title="💸 Total Sold" value={`£${summary.sold.toFixed(2)}`} />
+      <div className="inventory-summary">
+        <SummaryCard title="Inventory Value" value={`£${summary.inventory.toFixed(2)}`} icon="📦" />
+        <SummaryCard title="Est Profit (Unsold)" value={`£${summary.estProfit.toFixed(2)}`} icon="📈" />
+        <SummaryCard title="Total Sold" value={`£${summary.sold.toFixed(2)}`} icon="💸" />
       </div>
 
-      {/* ADD ITEM BUTTON */}
-      <button
-        onClick={() => setShowModal(true)}
-        style={{
-          marginTop: 16,
-          padding: "12px 18px",
-          borderRadius: 16,
-          background: "linear-gradient(135deg, #ff3b3b, #ff005c)",
-          color: "white",
-          fontWeight: 800,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          border: "none",
-          cursor: "pointer",
-          boxShadow: "0 0 20px rgba(255,0,92,0.45)",
-        }}
-      >
-        ➕ Add Item
-      </button>
+      <div className="inventory-actions">
+        <input
+          className="inventory-search"
+          placeholder="Search items, brands, categories…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-      {/* ITEMS */}
-      <div style={{ marginTop: 20 }}>
-        {items.map((item, i) => (
+        <button
+          className="btn-red"
+          onClick={() => {
+            setForm(EMPTY_FORM);
+            setEditingIndex(null);
+            setShowModal(true);
+          }}
+        >
+          ➕ Add Item
+        </button>
+      </div>
+
+      <div className="inventory-grid-header">
+        <span>Item</span>
+        <span>Brand</span>
+        <span>Size</span>
+        <span>Colour</span>
+        <span>Bought</span>
+        <span>Sold</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
+
+      {visible.map(({ item, idx }) => (
+        <div
+          key={item.id}
+          ref={(el) => (itemRefs.current[item.id] = el)}
+          className="inventory-row"
+        >
+          <div className="inv-name">
+            <strong>{item.name}</strong>
+
+            {Array.isArray(item.categoryPath) && item.categoryPath.length > 0 && (
+              <div className="inv-sub">📁 {item.categoryPath.join(" / ")}</div>
+            )}
+          </div>
+
+          <div>{item.brand || "—"}</div>
+          <div>{item.size || "—"}</div>
+
+          <div className="inv-colour">
+            {item.colour ? (
+              <>
+                <span
+                  className="colour-dot"
+                  style={{ background: COLOUR_MAP[item.colour] || "#555" }}
+                />
+                <span className="colour-label">
+                  {item.colour.charAt(0).toUpperCase() + item.colour.slice(1)}
+                </span>
+              </>
+            ) : (
+              "—"
+            )}
+          </div>
+
+          <div>£{item.purchasePrice || "—"}</div>
+          <div>{item.soldPrice ? `£${item.soldPrice}` : "—"}</div>
+
           <div
-            key={i}
-            className="glass"
-            style={{
-              padding: 16,
-              borderRadius: 20,
-              marginBottom: 12,
-              display: "grid",
-              gridTemplateColumns: "3fr 2fr auto auto",
-              gap: 16,
-              alignItems: "center",
+            className={`inv-status ${String(item.status || "").toLowerCase()}`}
+            onClick={() => {
+              const next = nextStatus(item.status);
+              if (next === "Sold" && !item.soldPrice) {
+                setForm({ ...item, status: "Sold" });
+                setEditingIndex(idx);
+                setShowModal(true);
+                return;
+              }
+              setItems((p) => p.map((x, i) => (i === idx ? { ...x, status: next } : x)));
             }}
           >
-            <div>
-              <strong>{item.name}</strong>{" "}
-              {item.finalCategory && <span>({item.finalCategory})</span>}
-              <div style={{ opacity: 0.7, fontSize: 13, marginTop: 4 }}>
-                {item.brand} • Size {item.size} •{" "}
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: item.colour,
-                    marginLeft: 6,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              <PriceChip emoji="💰" label="Bought" value={item.purchasePrice} />
-              {item.estimatedSale && (
-                <PriceChip emoji="📈" label="Est" value={item.estimatedSale} glow="gold" />
-              )}
-              {item.soldPrice && (
-                <PriceChip emoji="✅" label="Sold" value={item.soldPrice} glow="green" />
-              )}
-              {item.purchaseDate && <span>📅 {item.purchaseDate}</span>}
-            </div>
-
-            <div
-              onClick={() =>
-                setItems((p) =>
-                  p.map((x, idx) =>
-                    idx === i ? { ...x, status: nextStatus(x.status) } : x
-                  )
-                )
-              }
-              style={{
-  padding: "6px 14px",
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 700,
-  cursor: "pointer",
-  background:
-    item.status === "Sold"
-      ? "rgba(77,255,136,.35)"
-      : item.status === "Listed"
-      ? "rgba(255,183,3,.35)"
-      : "rgba(120,180,255,.35)",
-  boxShadow:
-    item.status === "Sold"
-      ? "0 0 18px rgba(77,255,136,.75)"
-      : "none",
-  animation:
-    item.status === "Sold" ? "soldPulse 1.2s ease-out" : "none",
-}}
-
-            >
-              {item.status}
-            </div>
-
-            <div style={{ display: "flex", gap: 14, fontSize: 18 }}>
-              <span
-  className="emoji"
-  title="Mark as Listed / Sold"
-  onClick={() => {
-    const newStatus = nextStatus(item.status);
-
-    setItems((prev) =>
-      prev.map((x, idx) =>
-        idx === i ? { ...x, status: newStatus } : x
-      )
-    );
-
-    // 👇 IF IT JUST BECAME SOLD → OPEN EDIT MODAL
-    if (newStatus === "Sold") {
-      setForm({ ...item, status: "Sold" });
-      setEditingIndex(i);
-      setShowModal(true);
-    }
-  }}
->
-  💸
-</span>
-
-              <span onClick={() => setItems((p) => p.filter((_, idx) => idx !== i))}>🗑️</span>
-            </div>
+            {item.status}
           </div>
-        ))}
-      </div>
+
+          <div className="inv-actions">
+            <button
+              title="Edit"
+              onClick={() => {
+                setForm({ ...item });
+                setEditingIndex(idx);
+                setShowModal(true);
+              }}
+            >
+              ✏️
+            </button>
+
+            <button
+              title="Delete"
+              onClick={() => setItems((p) => p.filter((_, i) => i !== idx))}
+            >
+              🗑️
+            </button>
+
+            <button
+              title="Duplicate"
+              onClick={() =>
+                setItems((p) => [
+                  ...p,
+                  ensureId({ ...item, status: "Bought", soldPrice: "", soldDate: "" }),
+                ])
+              }
+            >
+              📄
+            </button>
+
+            <button title="Quick View" onClick={() => setQuickViewItem(item)}>
+              👁️
+            </button>
+          </div>
+        </div>
+      ))}
 
       {showModal && (
         <AddItemModal
@@ -261,114 +341,303 @@ export default function Inventory() {
           onClose={() => setShowModal(false)}
         />
       )}
+
+      {quickViewItem && (
+        <div className="inventory-modal-backdrop" onClick={() => setQuickViewItem(null)}>
+          <div className="inventory-modal" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginTop: 0 }}>{quickViewItem.name}</h2>
+            <p>
+              <b>Brand:</b> {quickViewItem.brand || "—"}
+            </p>
+            <p>
+              <b>Status:</b> {quickViewItem.status}
+            </p>
+            <p>
+              <b>Category:</b>{" "}
+              {Array.isArray(quickViewItem.categoryPath) && quickViewItem.categoryPath.length
+                ? quickViewItem.categoryPath.join(" / ")
+                : "—"}
+            </p>
+            <button className="btn-ghost" onClick={() => setQuickViewItem(null)} style={{ width: "100%" }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ---------------- MODAL ---------------- */
+/* ================= SMALL COMPONENTS ================= */
+
+function SummaryCard({ title, value, icon }) {
+  return (
+    <div className="inventory-summary-card">
+      <div className="summary-top">
+        <span className="summary-icon-plain">{icon}</span>
+        <span className="summary-title">{title}</span>
+      </div>
+      <strong className="summary-value">{value}</strong>
+    </div>
+  );
+}
+
+/* ================= ADD ITEM MODAL ================= */
 
 function AddItemModal({ form, update, onSave, onClose }) {
-  const s = {
-    width: "100%",
-    padding: 10,
-    borderRadius: 12,
-    background: "rgba(0,0,0,.25)",
-    color: "white",
-    border: "none",
-    marginTop: 10,
-  };
-
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999 }}>
-      <div className="glass" style={{ width: 540, padding: 24 }}>
-        <h2>Add Item</h2>
+    <div className="inventory-modal-backdrop" onClick={onClose}>
+      <div className="inventory-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="inv-modal-header">
+          <h2 className="inv-modal-title">{form.id ? "Edit Item" : "Add New Item"}</h2>
+          <button className="inv-close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
 
-        <input placeholder="Item name *" value={form.name} onChange={(e) => update("name", e.target.value)} style={s} />
-        <input list="brands" placeholder="Brand" value={form.brand} onChange={(e) => update("brand", e.target.value)} style={s} />
-        <datalist id="brands">{BRANDS.map((b) => <option key={b} value={b} />)}</datalist>
+        <div className="inv-form">
+          <div className="inv-field">
+            <div className="inv-label">Item Name*</div>
+            <input
+              className="inv-control"
+              value={form.name}
+              onChange={(e) => update("name", e.target.value)}
+            />
+          </div>
 
-        <select value={form.size} onChange={(e) => update("size", e.target.value)} style={s}>
-          <option value="">📏 Size</option>
-          {SIZES.map((x) => <option key={x}>{x}</option>)}
-        </select>
+          <div className="inv-field">
+            <div className="inv-label">🏷️ Category</div>
+            <VintedCategoryPicker
+              groups={vintedGroups}
+              value={form.categoryPath}
+              onChange={(path) => {
+                update("categoryPath", path);
+                update("finalCategory", path[path.length - 1] || "");
+              }}
+            />
+          </div>
 
-        <select value={form.colour} onChange={(e) => update("colour", e.target.value)} style={s}>
-          <option value="">🎨 Colour</option>
-          {COLOURS.map((c) => <option key={c.value} value={c.value}>{c.name}</option>)}
-        </select>
+          <div className="inv-row2">
+            <div className="inv-field">
+              <div className="inv-label">
+                🏷️ Brand <small>(optional)</small>
+              </div>
+              <input
+                className="inv-control"
+                list="brands"
+                value={form.brand}
+                onChange={(e) => update("brand", e.target.value)}
+              />
+              <datalist id="brands">
+                {BRANDS.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </div>
 
-        <input type="number" placeholder="Purchase price *" value={form.purchasePrice} onChange={(e) => update("purchasePrice", e.target.value)} style={s} />
-        <input type="date" value={form.purchaseDate} onChange={(e) => update("purchaseDate", e.target.value)} style={s} />
-        <input type="number" placeholder="Estimated sale price" value={form.estimatedSale} onChange={(e) => update("estimatedSale", e.target.value)} style={s} />
-        
+            <div className="inv-field">
+              <div className="inv-label">
+                📏 Size <small>(optional)</small>
+              </div>
+              <select className="inv-control" value={form.size} onChange={(e) => update("size", e.target.value)}>
+                <option value="">Select size…</option>
+                {SIZES.map((x) => (
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-        <select value={form.status} onChange={(e) => update("status", e.target.value)} style={s}>
-          <option value="Bought">🛒 Bought</option>
-          <option value="Listed">📦 Listed</option>
-          <option value="Sold">✅ Sold</option>
-        </select>
+          <div className="inv-row2">
+            <div className="inv-field">
+              <div className="inv-label">
+                🎨 Colour <small>(optional)</small>
+              </div>
+              <select className="inv-control" value={form.colour} onChange={(e) => update("colour", e.target.value)}>
+                <option value="">Select colour…</option>
+                {COLOURS.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        {form.status === "Sold" && (
-          <input type="number" placeholder="Sold price *" value={form.soldPrice} onChange={(e) => update("soldPrice", e.target.value)} style={s} />
-        )}
+            <div className="inv-field">
+              <div className="inv-label">✅ Status</div>
+              <select className="inv-control" value={form.status} onChange={(e) => update("status", e.target.value)}>
+                <option value="Bought">Bought</option>
+                <option value="Listed">Listed</option>
+                <option value="Sold">Sold</option>
+              </select>
+            </div>
+          </div>
 
-        <textarea placeholder="Notes" value={form.notes} onChange={(e) => update("notes", e.target.value)} style={{ ...s, height: 80 }} />
+          <div className="inv-row2">
+            <div className="inv-field">
+              <div className="inv-label">💷 Purchase price*</div>
+              <input
+                className="inv-control"
+                type="number"
+                value={form.purchasePrice}
+                onChange={(e) => update("purchasePrice", e.target.value)}
+              />
+            </div>
 
-        <button className="glass" style={{ marginTop: 16 }} onClick={onSave}>Save Item</button>
-        <button style={{ marginTop: 8 }} onClick={onClose}>Cancel</button>
+            <div className="inv-field">
+              <div className="inv-label">📅 Purchase date</div>
+              <input
+                className="inv-control"
+                type="date"
+                value={form.purchaseDate}
+                onChange={(e) => update("purchaseDate", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="inv-field">
+            <div className="inv-label">
+              📈 Estimated sale price <small>(optional)</small>
+            </div>
+            <input
+              className="inv-control"
+              type="number"
+              value={form.estimatedSale}
+              onChange={(e) => update("estimatedSale", e.target.value)}
+            />
+          </div>
+
+          {form.status === "Sold" && (
+            <div className="inv-row2">
+              <div className="inv-field">
+                <div className="inv-label">✅ Sold price*</div>
+                <input
+                  className="inv-control"
+                  type="number"
+                  value={form.soldPrice}
+                  onChange={(e) => update("soldPrice", e.target.value)}
+                />
+              </div>
+
+              <div className="inv-field">
+                <div className="inv-label">📅 Sold date</div>
+                <input
+                  className="inv-control"
+                  type="date"
+                  value={form.soldDate || ""}
+                  onChange={(e) => update("soldDate", e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="inv-field">
+            <div className="inv-label">📝 Notes</div>
+            <textarea
+              className="inv-control inv-textarea"
+              value={form.notes}
+              onChange={(e) => update("notes", e.target.value)}
+            />
+          </div>
+
+          <button className="btn-red" style={{ width: "100%" }} onClick={onSave}>
+            💾 Save Item
+          </button>
+
+          <button className="btn-ghost" style={{ width: "100%" }} onClick={onClose}>
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-/* ---------------- SMALL COMPONENTS ---------------- */
+/* ================= VINTED CATEGORY PICKER ================= */
 
-function SummaryCard({ title, value }) {
+function VintedCategoryPicker({ groups, value, onChange }) {
+  const [path, setPath] = useState(value || []);
+  const [node, setNode] = useState({ children: groups });
+
+  useEffect(() => {
+    let cur = { children: groups };
+    for (const p of path) cur = cur.children?.[p] || cur;
+    setNode(cur);
+  }, [path, groups]);
+
   return (
-    <div className="glass" style={{ padding: 18 }}>
-      <div style={{ fontWeight: 700 }}>{title}</div>
-      <div style={{ fontSize: 24 }}>{value}</div>
+    <div>
+      <div
+        className="glass"
+        style={{
+          padding: "6px 10px",
+          borderRadius: 10,
+          marginBottom: 6,
+          fontSize: 12,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+          userSelect: "none",
+        }}
+      >
+        {path.length === 0
+          ? "Select category…"
+          : path.map((p, i) => (
+              <span
+                key={i}
+                onClick={() => {
+                  const np = path.slice(0, i + 1);
+                  setPath(np);
+                  onChange(np);
+                }}
+                style={{
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                {p}
+                {i < path.length - 1 && " › "}
+              </span>
+            ))}
+      </div>
+
+      <div
+        className="glass"
+        style={{
+          maxHeight: 160,
+          overflowY: "auto",
+          padding: 6,
+          borderRadius: 10,
+        }}
+      >
+        {Object.keys(node.children || {}).map((k) => (
+          <div
+            key={k}
+            onClick={() => {
+              const np = [...path, k];
+              setPath(np);
+              onChange(np);
+            }}
+            style={{
+              padding: "6px 8px",
+              cursor: "pointer",
+              fontSize: 12,
+              borderRadius: 8,
+              userSelect: "none",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            📁 {k}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
-
-function PriceChip({ emoji, label, value, glow }) {
-  return (
-    <div
-      style={{
-        padding: "6px 12px",
-        borderRadius: 999,
-        background: "rgba(255,255,255,0.12)",
-        display: "flex",
-        gap: 6,
-        boxShadow:
-          glow === "green"
-            ? "0 0 10px rgba(77,255,136,.45)"
-            : glow === "gold"
-            ? "0 0 10px rgba(255,183,3,.45)"
-            : "none",
-      }}
-    >
-      <span>{emoji}</span>
-      <span>{label}</span>
-      <span>£{value}</span>
-    </div>
-  );
-}
-
-<style>{`
-@keyframes soldPulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 0 rgba(77,255,136,0);
-  }
-  50% {
-    transform: scale(1.08);
-    box-shadow: 0 0 22px rgba(77,255,136,.9);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 18px rgba(77,255,136,.75);
-  }
-}
-`}</style>

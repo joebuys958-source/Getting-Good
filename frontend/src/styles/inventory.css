@@ -1,0 +1,346 @@
+/* ================= PAGE ================= */
+.inventory-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px;
+}
+
+/* ================= HEADER ================= */
+.inventory-title {
+  font-size: 34px;
+  margin: 0;
+}
+
+/* ================= SUMMARY ================= */
+.inventory-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.inventory-summary-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.inventory-summary-card span {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.inventory-summary-card strong {
+  margin-top: 6px;
+  display: block;
+  font-size: 26px;
+}
+
+/* ================= ACTION BAR ================= */
+.inventory-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.inventory-search {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  color: #fff;
+}
+
+/* ================= GRID HEADER ================= */
+.inventory-grid-header {
+  display: grid;
+  grid-template-columns: 2.5fr 1.5fr 1fr 1fr 1fr 1fr auto auto;
+  align-items: center;        /* ⬅ match rows */
+}
+
+   
+
+/* ================= ROW ================= */
+.inventory-row {
+  display: grid;
+  grid-template-columns: 2.5fr 1.5fr 1fr 1fr 1fr 1fr auto auto;
+  align-items: center;        /* ⬅ THIS FIXES IT */
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+
+.inventory-row:hover {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.06);
+}
+
+/* ================= CELLS ================= */
+.inv-name strong {
+  display: block;
+}
+
+.inv-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.colour-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+/* ===== COLOUR CELL ===== */
+.inv-colour {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.colour-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.25);
+}
+
+.colour-label {
+  opacity: 0.85;
+}
+
+/* ================= STATUS ================= */
+.inv-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;        /* ⬅ tighter bubble */
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.inv-status.bought {
+  background: rgba(59,130,246,0.18);
+  border: 1px solid rgba(59,130,246,0.35);
+}
+
+.inv-status.listed {
+  background: rgba(245,158,11,0.18);
+  border: 1px solid rgba(245,158,11,0.35);
+}
+
+.inv-status.sold {
+  background: rgba(34,197,94,0.20);
+  border: 1px solid rgba(34,197,94,0.35);
+}
+
+/* ================= ACTIONS ================= */
+.inv-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.inv-actions button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border-soft);
+  cursor: pointer;
+}
+
+/* ================= MODALS ================= */
+.inventory-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 9999;
+
+  /* allow scrolling if modal is tall */
+  overflow-y: auto;
+}
+
+
+
+.inventory-modal {
+  position: relative;
+
+  width: 560px;
+  max-width: calc(100vw - 32px);
+
+  /* ⬇️ THIS IS THE MAGIC */
+  margin: 48px auto;
+
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+
+  background: var(--bg-panel);
+  border-radius: 18px;
+  padding: 20px;
+
+  /* subtle lift */
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+
+
+.btn-red {
+  background: linear-gradient(135deg, #ff3c3c, #ff5e5e);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 18px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-ghost {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
+  border-radius: 14px;
+  padding: 12px 18px;
+  cursor: pointer;
+}
+/* ===== MODAL HEADER (like screenshot) ===== */
+.inventory-modal {
+  width: min(980px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  margin: 32px auto;
+  padding: 26px;
+}
+
+.inv-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.inv-modal-title {
+  font-size: 24px;
+  font-weight: 850;
+  margin: 0;
+}
+
+.inv-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease, border-color .15s ease;
+}
+.inv-close:hover {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.16);
+}
+
+/* ===== FORM LAYOUT ===== */
+.inv-form {
+  display: grid;
+  gap: 16px;
+}
+
+.inv-field {
+  display: grid;
+  gap: 8px;
+}
+
+.inv-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 750;
+  font-size: 14px;
+  color: #fff;
+}
+
+.inv-label small {
+  font-weight: 600;
+  opacity: 0.55;
+}
+
+/* input/select/textarea consistent */
+.inv-control {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: #fff;
+  outline: none;
+}
+
+.inv-control:focus {
+  border-color: rgba(59,130,246,0.55);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.18);
+}
+
+.inv-textarea {
+  min-height: 96px;
+  padding: 12px 14px;
+  height: auto;
+  resize: vertical;
+}
+
+/* two-column rows inside modal (like screenshot wider layout) */
+.inv-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 860px) {
+  .inventory-modal { width: min(680px, calc(100vw - 32px)); }
+  .inv-row2 { grid-template-columns: 1fr; }
+}
+/* make header + row use same grid columns */
+.inventory-grid-header,
+.inventory-row {
+  display: grid;
+  grid-template-columns: 2.2fr 1.4fr .6fr 1fr .9fr .9fr .9fr 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+/* alignment per column (header + row cells) */
+.inventory-grid-header > span:nth-child(3),
+.inventory-row > div:nth-child(3) {
+  justify-self: center; /* Size */
+}
+
+.inventory-grid-header > span:nth-child(4),
+.inventory-row > div:nth-child(4) {
+  justify-self: center; /* Colour */
+}
+
+.inventory-grid-header > span:nth-child(5),
+.inventory-row > div:nth-child(5),
+.inventory-grid-header > span:nth-child(6),
+.inventory-row > div:nth-child(6) {
+  justify-self: end; /* Bought / Sold */
+}
+
+.inventory-grid-header > span:nth-child(7),
+.inventory-row > div:nth-child(7) {
+  justify-self: center; /* Status */
+}
+
+.inventory-grid-header > span:nth-child(8),
+.inventory-row > div:nth-child(8) {
+  justify-self: end; /* Actions */
+}
