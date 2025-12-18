@@ -1,0 +1,163 @@
+/* =========================
+   DASHBOARD PAGE
+========================= */
+
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-left: 12px; /* pushes content away from sidebar */
+}
+
+/* =========================
+   OVERVIEW CARDS
+========================= */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+/* Reuses summary-card from expenses */
+.summary-card {
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-soft);
+}
+
+/* =========================
+   2 COLUMN ROW
+========================= */
+
+.dashboard-two {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+/* =========================
+   3 COLUMN ROW
+========================= */
+
+.dashboard-three {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 20px;
+}
+
+/* =========================
+   GLASS PANELS
+========================= */
+
+.glass-panel {
+  background: var(--bg-panel);
+  border-radius: 18px;
+  padding: 18px;
+  border: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.glass-panel h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+/* =========================
+   INSIGHTS
+========================= */
+
+.insight-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.insight-row:last-child {
+  border-bottom: none;
+}
+
+/* =========================
+   ACTIVITY
+========================= */
+
+.activity-row {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.activity-row:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+/* =========================
+   QUICK ACTIONS
+========================= */
+
+.quick-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.quick-action:hover {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.09);
+}
+
+.quick-action span {
+  font-size: 22px;
+}
+
+/* =========================
+   GOAL PROGRESS
+========================= */
+
+.goal-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  overflow: hidden;
+}
+
+.progress > div {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+/* =========================
+   MINI PROFIT BARS
+========================= */
+
+.mini-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 90px;
+}
+
+.mini-bars div {
+  width: 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #4ade80, #22c55e);
+}

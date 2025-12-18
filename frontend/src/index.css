@@ -452,3 +452,72 @@ select option {
   color: white;
 }
 
+/* ===============================
+   SIDEBAR COLLAPSE – FINAL FIX
+   =============================== */
+
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  flex-shrink: 0;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 110px;
+  min-width: 110px;
+}
+
+/* Center icons when collapsed */
+.sidebar.collapsed .sidebar-item {
+  justify-content: center;
+}
+
+/* Hide labels when collapsed */
+.sidebar.collapsed .sidebar-item span:not(.emoji) {
+  display: none;
+}
+/* ===============================
+   HAMBURGER BUTTON (CLEAN)
+   =============================== */
+
+.hamburger {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.25s ease, transform 0.2s ease;
+}
+
+.hamburger:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
+.hamburger span {
+  width: 18px;
+  height: 2px;
+  background: white;
+  border-radius: 2px;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+/* Optional: animate to X when collapsed */
+.sidebar.collapsed .hamburger span:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.sidebar.collapsed .hamburger span:nth-child(2) {
+  opacity: 0;
+}
+
+.sidebar.collapsed .hamburger span:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}

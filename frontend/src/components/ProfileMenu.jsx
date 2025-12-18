@@ -1,112 +1,39 @@
-import { useEffect, useRef, useState } from "react";
-import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
-import { useNavigate } from "react-router-dom";
-
 export default function ProfileMenu() {
-  const [open, setOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const menuRef = useRef(null);
-  const navigate = useNavigate();
-
-  const user = auth.currentUser;
-  const email = user?.email || "user@email.com";
-  const initial = email.charAt(0).toUpperCase();
-
-  /* ---------------- Outside Click ---------------- */
-
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        closeMenu();
-      }
-    }
-
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
-
-  /* ---------------- Close Animation ---------------- */
-
-  function closeMenu() {
-    setClosing(true);
-    setTimeout(() => {
-      setOpen(false);
-      setClosing(false);
-    }, 200);
-  }
-
-  /* ---------------- Logout ---------------- */
-
-  async function handleLogout() {
-    try {
-      await signOut(auth);
-      navigate("/auth");
-    } catch {
-      alert("Logout failed");
-    }
-  }
-
   return (
     <div
-      ref={menuRef}
       style={{
         position: "fixed",
-        top: 18,
-        right: 22,
-        zIndex: 50,
+        top: 16,
+        right: 16,
+        padding: "10px 14px",
+        borderRadius: 12,
+        background: "rgba(255,255,255,0.08)",
+        backdropFilter: "blur(12px)",
+        color: "#fff",
+        fontSize: 14,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        zIndex: 1000,
       }}
     >
-      {/* Profile pill */}
-      <div
-        className={`glass profile-pill ${open ? "open" : ""}`}
-        onClick={() => setOpen(!open)}
+      {/* Temporary placeholder – auth disabled */}
+      <span
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          background: "linear-gradient(135deg, #ff3b3b, #ff7a7a)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: 600,
+        }}
       >
-        <div className="profile-avatar">{initial}</div>
-        <span style={{ fontSize: 14 }}>{email}</span>
-      </div>
+        U
+      </span>
 
-      {/* Dropdown */}
-      {open && (
-        <div
-          className={`glass profile-dropdown ${
-            closing ? "closing" : ""
-          }`}
-          style={{
-            marginTop: 10,
-            minWidth: 220,
-            padding: 12,
-            borderRadius: 18,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 13,
-              opacity: 0.7,
-              marginBottom: 10,
-            }}
-          >
-            Account
-          </div>
-
-          <div className="profile-item">💳 Subscription</div>
-          <div className="profile-item">📄 Billing & Invoices</div>
-          <div className="profile-item">⚙️ Account Settings</div>
-
-          <div
-            className="profile-item"
-            style={{ color: "#ff9f1c", marginTop: 6 }}
-            onClick={handleLogout}
-          >
-            🚪 Logout
-          </div>
-        </div>
-      )}
+      <span style={{ opacity: 0.85 }}>User</span>
     </div>
   );
 }

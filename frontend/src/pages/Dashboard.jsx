@@ -1,253 +1,245 @@
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import "../styles/dashboard.css";
+
+
+
+import { loadInventory } from "../data/inventoryStore";
+import { loadGoals } from "../data/goalsStore";
+import { loadExpenses } from "../data/expensesStore";
+
+/* ===========================
+   HELPERS
+=========================== */
+
+function daysBetween(a, b) {
+  return Math.abs((a - b) / 86400000);
+}
+
+/* ===========================
+   DASHBOARD
+=========================== */
+
 export default function Dashboard() {
+  const navigate = useNavigate();
+
+  const inventory = loadInventory();
+  const goals = loadGoals();
+  const expenses = loadExpenses();
+
+  /* ---------- INVENTORY METRICS ---------- */
+
+  const soldItems = inventory.filter(i => i.status === "Sold");
+  const activeItems = inventory.filter(i => i.status !== "Sold");
+
+  const totalRevenue = soldItems.reduce(
+    (s, i) => s + Number(i.soldPrice || 0),
+    0
+  );
+
+  const totalCost = soldItems.reduce(
+    (s, i) => s + Number(i.purchasePrice || 0),
+    0
+  );
+
+  const totalProfit = totalRevenue - totalCost;
+
+  const sellThrough =
+    inventory.length > 0
+      ? (soldItems.length / inventory.length) * 100
+      : 0;
+
+  const avgDaysToSell =
+    soldItems.length === 0
+      ? "—"
+      : Math.round(
+          soldItems.reduce((s, i) => {
+            if (!i.purchaseDate || !i.soldDate) return s;
+            return (
+              s +
+              daysBetween(
+                new Date(i.purchaseDate),
+                new Date(i.soldDate)
+              )
+            );
+          }, 0) / soldItems.length
+        );
+
+  const itemsAtRisk = activeItems.filter(i => {
+    if (!i.purchaseDate) return false;
+    return daysBetween(new Date(), new Date(i.purchaseDate)) > 30;
+  }).length;
+
+  /* ---------- EXPENSES ---------- */
+
+  const totalExpenses = expenses.reduce(
+    (s, e) => s + Number(e.amount || 0),
+    0
+  );
+
+  /* ---------- TOP BRANDS & CATEGORIES ---------- */
+
+  const topBrands = useMemo(() => {
+    const map = {};
+    soldItems.forEach(i => {
+      if (!i.brand) return;
+      map[i.brand] = (map[i.brand] || 0) + 1;
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+  }, [soldItems]);
+
+  const topCategories = useMemo(() => {
+    const map = {};
+    soldItems.forEach(i => {
+      if (!i.finalCategory) return;
+      map[i.finalCategory] =
+        (map[i.finalCategory] || 0) + Number(i.soldPrice || 0);
+    });
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+  }, [soldItems]);
+
+  /* ===========================
+     RENDER
+  =========================== */
+
   return (
-    <div style={{ padding: 36 }}>
-      <h1>Dashboard</h1>
+    <div className="dashboard-page">
+      {/* ===== OVERVIEW ===== */}
+      <section className="dashboard-grid">
+        <OverviewCard emoji="💰" label="Total Profit" value={`£${totalProfit.toFixed(0)}`} />
+        <OverviewCard emoji="💳" label="Total Revenue" value={`£${totalRevenue.toFixed(0)}`} />
+        <OverviewCard emoji="💸" label="Total Expenses" value={`£${totalExpenses.toFixed(0)}`} />
+        <OverviewCard emoji="📦" label="Active Listings" value={activeItems.length} />
+        <OverviewCard emoji="✅" label="Sold Items" value={soldItems.length} />
+      </section>
 
-      {/* TOP METRICS */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 20,
-        }}
-      >
-        <Metric emoji="📦" title="Active Listings" value="6" />
-        <Metric emoji="✅" title="Sold Items" value="25" />
-        <Metric emoji="💰" title="Gross Profit" value="£542" />
-        <Metric emoji="💳" title="Total Sales" value="£981" />
-        <Metric emoji="🧮" title="Total Items" value="33" />
-        <Metric emoji="💸" title="Expenses" value="£0" />
-      </div>
+      {/* ===== PERFORMANCE + ALERTS ===== */}
+      <section className="dashboard-two">
+        <Glass title="📈 Performance Insights">
+          <Insight label="Avg Days to Sell" value={avgDaysToSell} />
+          <Insight label="Profit Margin" value={`${((totalProfit / Math.max(totalRevenue,1)) * 100).toFixed(1)}%`} />
+          <Insight label="Sell-through Rate" value={`${sellThrough.toFixed(1)}%`} />
+          <Insight label="Items at Risk" value={itemsAtRisk || "—"} />
+        </Glass>
 
-      {/* PERFORMANCE + ALERTS */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr",
-          gap: 24,
-          marginTop: 32,
-        }}
-      >
-        <div className="glass" style={{ padding: 26 }}>
-          <div className="section-title">
-            <span className="emoji">📈</span> Performance Insights
-          </div>
+        <Glass title="🚨 Alerts & Notifications">
+          {itemsAtRisk > 0 && <p>⚠️ {itemsAtRisk} items listed over 30 days</p>}
+          {goals.length > 0 && <p>🎯 {goals.length} active goals</p>}
+          {expenses.some(e => e.recurring) && <p>⏰ Recurring expenses active</p>}
+        </Glass>
+      </section>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: 18,
-            }}
-          >
-            <Insight label="Conversion Rate" value="75.8%" />
-            <Insight label="Avg. Days to Sell" value="9" />
-            <Insight label="Profit Margin" value="55.2%" />
-            <Insight label="Items at Risk" value="0" />
-          </div>
-
-          {/* PROFIT TREND */}
-          <div style={{ marginTop: 24 }}>
-            <div className="muted">📊 Profit Margin Trend</div>
+      {/* ===== ACTIVITY + TOP ===== */}
+      <section className="dashboard-three">
+        <Glass title="🕒 Recent Activity">
+          {inventory.slice(0, 5).map(i => (
             <div
-              style={{
-                height: 12,
-                marginTop: 8,
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.15)",
-                overflow: "hidden",
-              }}
+              key={i.id}
+              className="activity-row"
+              onClick={() => navigate("/inventory")}
             >
-              <div
-                style={{
-                  width: "55%",
-                  height: "100%",
-                  background:
-                    "linear-gradient(90deg, #ffd6a5, #ffb703)",
-                  boxShadow:
-                    "0 0 18px rgba(255,183,3,0.75)",
-                }}
-              />
+              {i.status === "Sold" ? "✅ Sold" : "📦 Listed"} {i.name}
             </div>
-          </div>
-        </div>
+          ))}
+        </Glass>
 
-        <div className="glass" style={{ padding: 26 }}>
-          <div className="section-title">
-            <span className="emoji">🚨</span> Alerts & Notifications
-          </div>
-          <p>🎯 <b>1 goal</b> due within 2 weeks</p>
-          <p style={{ marginTop: 10, opacity: 0.8 }}>
-            📦 No dead stock detected
-          </p>
-        </div>
-      </div>
+        <Glass title="🏆 Top Performers">
+          <h4>Top Brands</h4>
+          {topBrands.map(([b, c]) => (
+            <div key={b} onClick={() => navigate("/inventory")}>
+              {b} — {c} sold
+            </div>
+          ))}
 
-      {/* ACTIVITY + ACTIONS */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr",
-          gap: 24,
-          marginTop: 32,
-        }}
-      >
-        <div className="glass" style={{ padding: 26 }}>
-          <div className="section-title">
-            <span className="emoji">🕒</span> Recent Activity
-          </div>
+          <h4 style={{ marginTop: 12 }}>Top Categories</h4>
+          {topCategories.map(([c, v]) => (
+            <div key={c} onClick={() => navigate("/inventory")}>
+              {c} — £{v.toFixed(0)}
+            </div>
+          ))}
+        </Glass>
 
-          <Activity text='Listed "Black TNF 700"' value="£24" />
-          <Activity text='Sold "Navy Ralph Lauren Zip"' value="£35" sold />
-          <Activity text='Sold "Beige Cable Knit"' value="£32" sold />
-        </div>
+        <Glass title="⚡ Quick Actions">
+          <QuickAction emoji="📦" label="Add Item" onClick={() => navigate("/inventory")} />
+          <QuickAction emoji="💸" label="Log Expense" onClick={() => navigate("/expenses")} />
+          <QuickAction emoji="🔁" label="Recurring Expense" onClick={() => navigate("/expenses")} />
+          <QuickAction emoji="🎯" label="Set Goal" onClick={() => navigate("/goals")} />
+          <QuickAction emoji="📊" label="Analytics" onClick={() => navigate("/analytics")} />
+        </Glass>
+      </section>
 
-        <div className="glass" style={{ padding: 26 }}>
-          <div className="section-title">
-            <span className="emoji">⚡</span> Quick Actions
-          </div>
+      {/* ===== GOALS + PROFIT ===== */}
+      <section className="dashboard-two">
+        <Glass title="🎯 Goal Progress">
+          {goals.slice(0, 3).map(g => {
+            const pct =
+              g.target > 0 ? (g.current / g.target) * 100 : 0;
+            return (
+              <div key={g.id} className="goal-row">
+                <div>{g.emoji} {g.name}</div>
+                <div className="progress">
+                  <div style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </Glass>
 
-          <Action label="📦 Add Item" />
-          <Action label="💸 Log Expense" />
-          <Action label="📊 Analytics" />
-          <Action label="🎯 Set Goal" />
-        </div>
-      </div>
-
-      {/* BOTTOM */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr",
-          gap: 24,
-          marginTop: 32,
-        }}
-      >
-        <div className="glass" style={{ padding: 26 }}>
-          <div className="section-title">
-            <span className="emoji">📆</span> 7-Day Profit
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-end",
-              gap: 12,
-              height: 130,
-              marginTop: 18,
-            }}
-          >
+        <Glass title="📆 7-Day Profit">
+          <div className="mini-bars">
             {[12, 22, 8, 30, 18, 25, 10].map((v, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 24,
-                  height: v * 3,
-                  borderRadius: 999,
-                  background:
-                    "linear-gradient(180deg, #ffb703, #ff9f1c)",
-                  boxShadow:
-                    "0 10px 22px rgba(255,159,28,0.55)",
-                }}
-              />
+              <div key={i} style={{ height: v * 2 }} />
             ))}
           </div>
-        </div>
-
-        <div className="glass" style={{ padding: 26 }}>
-          <div className="section-title">
-            <span className="emoji">🎯</span> Goal Review
-          </div>
-          <p>Monthly Profit Goal</p>
-          <p style={{ marginTop: 10, opacity: 0.85 }}>
-            £540 / £1,000
-          </p>
-        </div>
-      </div>
+        </Glass>
+      </section>
     </div>
   );
 }
 
-/* ---------- small components ---------- */
+/* ===========================
+   COMPONENTS
+=========================== */
 
-function Metric({ emoji, title, value }) {
-  const numericValue = Number(
-    String(value).replace(/[£,]/g, "")
-  );
-  const prefix = String(value).includes("£") ? "£" : "";
-
+function OverviewCard({ emoji, label, value }) {
   return (
-    <div className="glass" style={{ padding: 24 }}>
-      <div className="section-title">
-        <span className="emoji">{emoji}</span> {title}
+    <div className="summary-card">
+      <div className="card-top">
+        <span className="card-emoji">{emoji}</span>
+        <span className="card-title">{label}</span>
       </div>
-
-      <div className="metric-value">
-        {prefix}
-        <CountUp value={numericValue} />
-      </div>
+      <div className="card-value">{value}</div>
     </div>
   );
 }
 
+function Glass({ title, children }) {
+  return (
+    <div className="glass-panel">
+      <h3>{title}</h3>
+      {children}
+    </div>
+  );
+}
 
 function Insight({ label, value }) {
   return (
-    <div className="glass" style={{ padding: 18 }}>
-      <div className="muted">{label}</div>
-      <div style={{ fontSize: 22, marginTop: 6 }}>{value}</div>
+    <div className="insight-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
 
-function Activity({ text, value }) {
+function QuickAction({ emoji, label, onClick }) {
   return (
-    <div
-      className="glass"
-      style={{
-        padding: 16,
-        marginBottom: 14,
-        display: "flex",
-        justifyContent: "space-between",
-      }}
-    >
-      <span>{text}</span>
-      <span>{value}</span>
+    <div className="quick-action" onClick={onClick}>
+      <span>{emoji}</span>
+      <p>{label}</p>
     </div>
   );
-}
-
-function Action({ label }) {
-  return (
-    <div className="glass action" style={{ padding: 16, marginBottom: 14 }}>
-      {label}
-    </div>
-  );
-}
-import { useEffect, useState } from "react";
-
-function CountUp({ value, duration = 900 }) {
-  const [display, setDisplay] = useState(0);
-
-  useEffect(() => {
-    let start = 0;
-    const end = Number(value);
-    if (start === end) return;
-
-    const increment = end / (duration / 16);
-
-    const counter = setInterval(() => {
-      start += increment;
-      if (start >= end) {
-        clearInterval(counter);
-        setDisplay(end);
-      } else {
-        setDisplay(Math.floor(start));
-      }
-    }, 16);
-
-    return () => clearInterval(counter);
-  }, [value, duration]);
-
-  return <>{display}</>;
 }

@@ -1,122 +1,71 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState } from "react";
 
+/* AI Pages */
+import AIOverview from "./pages/ai/AIOverview";
+import AIPricing from "./pages/ai/AIPricing";
+import AIListings from "./pages/ai/AIListings";
+import AIInsights from "./pages/ai/AIInsights";
+
+
+
+
+/* Core Pages */
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Expenses from "./pages/Expenses";
 import Goals from "./pages/Goals";
 import Analytics from "./pages/Analytics";
-import AIChat from "./pages/AIChat";
-import Auth from "./pages/Auth";
 
+/* UI */
 import Sidebar from "./components/Sidebar";
 import ProfileMenu from "./components/ProfileMenu";
-import ProtectedRoute from "./components/ProtectedRoute";
 
-/* ---------------- Layout Wrapper ---------------- */
-
-function AppLayout({ children }) {
-  const location = useLocation();
-  const hideSidebar = location.pathname === "/auth";
+export default function App() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <>
-      {!hideSidebar && (
-        <Sidebar
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
-        />
-      )}
-
-      {!hideSidebar && <ProfileMenu />}
-
-      <div
-        style={{
-          marginLeft: hideSidebar ? 0 : collapsed ? 110 : 260,
-          padding: 16,
-          transition: "margin-left 0.35s ease",
-        }}
-      >
-        {children}
-      </div>
-    </>
-  );
-}
-
-/* ---------------- App ---------------- */
-
-export default function App() {
-  return (
     <BrowserRouter>
-      <AppLayout>
+      <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <ProfileMenu />
+
+   <main
+  style={{
+    marginLeft: collapsed ? 110 : 260,
+    padding: 16,
+    paddingLeft: 28, // 👈 pushes everything slightly right
+    transition: "margin-left 0.3s ease",
+
+    transform: "scale(0.94)",
+    transformOrigin: "top left",
+    width: "98%",
+  }}
+
+>
+
         <Routes>
-          <Route path="/auth" element={<Auth />} />
+          {/* Redirect root to dashboard */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+          {/* Core */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/expenses" element={<Expenses />} />
+          <Route path="/goals" element={<Goals />} />
+          <Route path="/analytics" element={<Analytics />} />
 
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+          {/* AI */}
+          <Route path="/ai" element={<AIOverview />} />
+          <Route path="/ai/pricing" element={<AIPricing />} />
+          <Route path="/ai/listings" element={<AIListings />} />
+          <Route path="/ai/insights" element={<AIInsights />} />
 
-          <Route
-            path="/inventory"
-            element={
-              <ProtectedRoute>
-                <Inventory />
-              </ProtectedRoute>
-            }
-          />
 
-          <Route
-            path="/expenses"
-            element={
-              <ProtectedRoute>
-                <Expenses />
-              </ProtectedRoute>
-            }
-          />
 
-          <Route
-            path="/goals"
-            element={
-              <ProtectedRoute>
-                <Goals />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/analytics"
-            element={
-              <ProtectedRoute>
-                <Analytics />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/ai"
-            element={
-              <ProtectedRoute>
-                <AIChat />
-              </ProtectedRoute>
-            }
-          />
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </AppLayout>
+      </main>
     </BrowserRouter>
   );
 }
